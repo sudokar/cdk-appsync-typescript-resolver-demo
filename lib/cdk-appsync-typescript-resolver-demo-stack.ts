@@ -1,16 +1,64 @@
-import * as cdk from 'aws-cdk-lib';
-import { Construct } from 'constructs';
-// import * as sqs from 'aws-cdk-lib/aws-sqs';
+import * as cdk from "aws-cdk-lib";
+import * as appsync from "aws-cdk-lib/aws-appsync";
+import * as dynamodb from "aws-cdk-lib/aws-dynamodb";
+import { Construct } from "constructs";
+import {
+  AppsyncTypescriptFunction,
+  TSExpressPipelineResolver,
+} from "cdk-appsync-typescript-resolver";
+import * as path from "path";
+
+const RESOLVERS_DIR_PATH = path.join(__dirname, "..", "src", "resolvers");
 
 export class CdkAppsyncTypescriptResolverDemoStack extends cdk.Stack {
   constructor(scope: Construct, id: string, props?: cdk.StackProps) {
     super(scope, id, props);
 
-    // The code that defines your stack goes here
+    const api = new appsync.GraphqlApi(this, "Api", {
+      name: "cdk-appsync-typescript-resolver-demo",
+      schema: appsync.SchemaFile.fromAsset("schema.graphql"),
+      authorizationConfig: {
+        defaultAuthorization: {
+          authorizationType: appsync.AuthorizationType.API_KEY,
+        },
+      },
+    });
 
-    // example resource
-    // const queue = new sqs.Queue(this, 'CdkAppsyncTypescriptResolverDemoQueue', {
-    //   visibilityTimeout: cdk.Duration.seconds(300)
-    // });
+    const todosTable = new dynamodb.Table(this, "TodosTable", {
+      partitionKey: {
+        name: "id",
+        type: dynamodb.AttributeType.STRING,
+      },
+    });
+
+    const dataSource = api.addDynamoDbDataSource("todoDataSource", todosTable);
+
+    const addTodo = new AppsyncTypescriptFunction(this, "AddTodoFunction", {
+      name: "addTodo",
+      api,
+      dataSource,
+      path: path.join(RESOLVERS_DIR_PATH, "addTodo.ts"),
+    });
+
+    new TSExpressPipelineResolver(this, "AddTodoResolver", {
+      api,
+      typeName: "Mutation",
+      fieldName: "addTodo",
+      tsFunction: addTodo,
+    });
+
+    const getTodo = new AppsyncTypescriptFunction(this, "GetTodoFunction", {
+      name: "getTodo",
+      api,
+      dataSource,
+      path: path.join(RESOLVERS_DIR_PATH, "addTodo.ts"),
+    });
+
+    new TSExpressPipelineResolver(this, "GetTodoResolver", {
+      api,
+      typeName: "Query",
+      fieldName: "getTodo",
+      tsFunction: getTodo,
+    });
   }
 }
