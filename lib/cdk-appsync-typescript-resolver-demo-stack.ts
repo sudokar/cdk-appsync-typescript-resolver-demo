@@ -5,6 +5,7 @@ import { Construct } from "constructs";
 import {
   AppsyncTypescriptFunction,
   TSExpressPipelineResolver,
+  TypescriptUnitResolver,
 } from "cdk-appsync-typescript-resolver";
 import * as path from "path";
 
@@ -16,7 +17,9 @@ export class CdkAppsyncTypescriptResolverDemoStack extends cdk.Stack {
 
     const api = new appsync.GraphqlApi(this, "Api", {
       name: "cdk-appsync-typescript-resolver-demo",
-      schema: appsync.SchemaFile.fromAsset("schema.graphql"),
+      definition: {
+        schema: appsync.SchemaFile.fromAsset("schema.graphql"),
+      },
       authorizationConfig: {
         defaultAuthorization: {
           authorizationType: appsync.AuthorizationType.API_KEY,
@@ -47,18 +50,12 @@ export class CdkAppsyncTypescriptResolverDemoStack extends cdk.Stack {
       tsFunction: addTodo,
     });
 
-    const getTodo = new AppsyncTypescriptFunction(this, "GetTodoFunction", {
-      name: "getTodo",
+    new TypescriptUnitResolver(this, "GetTodoResolver", {
       api,
       dataSource,
-      path: path.join(RESOLVERS_DIR_PATH, "addTodo.ts"),
-    });
-
-    new TSExpressPipelineResolver(this, "GetTodoResolver", {
-      api,
       typeName: "Query",
       fieldName: "getTodo",
-      tsFunction: getTodo,
+      path: path.join(RESOLVERS_DIR_PATH, "getTodo.ts"),
     });
   }
 }
